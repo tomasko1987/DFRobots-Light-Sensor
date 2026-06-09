@@ -59,3 +59,13 @@ Additional ZLAN 7110M VirCom configuration:
 
 ### 7 Days InfluxDB
 ![7 Days InfluxDB](InfluxDB/7_Days_InfluxDB.jpg)
+
+---
+
+## Sensors
+
+### SensorsFoto1
+![SensorsFoto1](SensorsFoto1.jpg)
+
+### SensorsFoto2
+![SensorsFoto2](SensorsFoto2.jpg)
