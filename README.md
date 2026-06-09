@@ -46,3 +46,16 @@ Additional ZLAN 7110M VirCom configuration:
 
 - 🇬🇧 [`zlan_final_bus_monitor_correct_EN.html`](zlan_final_bus_monitor_correct_EN.html) — English
 - 🇸🇰 [`zlan_final_bus_monitor_correct.html`](zlan_final_bus_monitor_correct.html) — Slovak
+
+---
+
+## InfluxDB – Data samples
+
+### 1 Hours InfluxDB
+![1 Hours InfluxDB](InfluxDB/1_Hours_InfluxDB.jpg)
+
+### 3 Hours InfluxDB
+![3 Hours InfluxDB](InfluxDB/3_Hours_InfluxDB.jpg)
+
+### 7 Days InfluxDB
+![7 Days InfluxDB](InfluxDB/7_Days_InfluxDB.jpg)
