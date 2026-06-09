@@ -1,0 +1,93 @@
+<svg width="1180" height="560" viewBox="0 0 1180 560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#111827"/>
+    </marker>
+    <style>
+      .box  { fill:#ffffff; stroke:#0b3d91; stroke-width:2; }
+      .box2 { fill:#ecfdf5; stroke:#15803d; stroke-width:2; }
+      .box3 { fill:#fff7ed; stroke:#ea580c; stroke-width:2; }
+      .box4 { fill:#fef2f2; stroke:#dc2626; stroke-width:2; }
+      .txt  { font-size:15px; font-family:Arial,Helvetica,sans-serif; fill:#111827; }
+      .small{ font-size:12px; font-family:Arial,Helvetica,sans-serif; fill:#374151; }
+      .arrow{ stroke:#111827; stroke-width:2; marker-end:url(#arrowhead); fill:none; }
+    </style>
+  </defs>
+
+  <!-- background -->
+  <rect width="1180" height="560" fill="#f8fafc" rx="16"/>
+
+  <!-- Sensor 1 -->
+  <rect x="30" y="60" width="210" height="95" rx="12" class="box2"/>
+  <text x="55" y="90"  class="txt">DFRobot SEN0644 #1</text>
+  <text x="55" y="112" class="small">RS485 light sensor</text>
+  <text x="55" y="132" class="small">Modbus RTU / RS485</text>
+
+  <!-- Sensor 2 -->
+  <rect x="30" y="250" width="210" height="95" rx="12" class="box2"/>
+  <text x="55" y="280" class="txt">DFRobot SEN0644 #2</text>
+  <text x="55" y="302" class="small">RS485 light sensor</text>
+  <text x="55" y="322" class="small">Modbus RTU / RS485</text>
+
+  <!-- ZLAN 1 -->
+  <rect x="330" y="60" width="245" height="115" rx="12" class="box3"/>
+  <text x="355" y="90"  class="txt">ZLAN 7110M #1</text>
+  <text x="355" y="112" class="small">IP: 192.168.50.128</text>
+  <text x="355" y="132" class="small">Port: 4196</text>
+  <text x="355" y="152" class="small">RS485 → Modbus TCP</text>
+
+  <!-- ZLAN 2 -->
+  <rect x="330" y="250" width="245" height="115" rx="12" class="box3"/>
+  <text x="355" y="280" class="txt">ZLAN 7110M #2</text>
+  <text x="355" y="302" class="small">IP: 192.168.50.106</text>
+  <text x="355" y="322" class="small">Port: 4196</text>
+  <text x="355" y="342" class="small">RS485 → Modbus TCP</text>
+
+  <!-- Docker host -->
+  <rect x="675" y="80" width="455" height="300" rx="14" fill="#eef2ff" stroke="#3730a3" stroke-width="2"/>
+  <text x="700" y="108" class="txt">Docker VM / Linux host</text>
+  <text x="700" y="130" class="small">Docker and containers run here</text>
+
+  <!-- Telegraf -->
+  <rect x="705" y="155" width="250" height="80" rx="10" class="box"/>
+  <text x="730" y="185" class="txt">Telegraf container</text>
+  <text x="730" y="208" class="small">reads Modbus TCP data</text>
+  <text x="730" y="226" class="small">/etc/telegraf/telegraf.conf</text>
+
+  <!-- Mosquitto -->
+  <rect x="705" y="275" width="250" height="55" rx="10" class="box4"/>
+  <text x="730" y="300" class="txt">Mosquitto MQTT</text>
+  <text x="730" y="320" class="small">192.168.50.103:1883</text>
+
+  <!-- InfluxDB -->
+  <rect x="990" y="275" width="115" height="55" rx="10" fill="#ecfeff" stroke="#0891b2" stroke-width="2"/>
+  <text x="1005" y="300" class="txt">InfluxDB</text>
+  <text x="1001" y="320" class="small">:8086</text>
+
+  <!-- Arrows -->
+  <line x1="240" y1="108" x2="330" y2="108" class="arrow"/>
+  <text x="252" y="97" class="small">RS485 A/B</text>
+
+  <line x1="240" y1="298" x2="330" y2="298" class="arrow"/>
+  <text x="252" y="287" class="small">RS485 A/B</text>
+
+  <line x1="575" y1="118" x2="705" y2="188" class="arrow"/>
+  <text x="585" y="130" class="small">Modbus TCP</text>
+
+  <line x1="575" y1="308" x2="705" y2="218" class="arrow"/>
+  <text x="585" y="318" class="small">Modbus TCP</text>
+
+  <line x1="830" y1="235" x2="830" y2="275" class="arrow"/>
+  <text x="838" y="260" class="small">MQTT publish</text>
+
+  <line x1="955" y1="198" x2="1035" y2="275" class="arrow"/>
+  <text x="962" y="228" class="small">write API</text>
+  <text x="962" y="244" class="small">bucket</text>
+
+  <!-- Data path box -->
+  <rect x="30" y="420" width="1120" height="110" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="55" y="448" class="txt" font-weight="bold">Data path:</text>
+  <text x="55" y="472" class="txt">DFRobot SEN0644 → RS485 → ZLAN 7110M → Modbus TCP → Telegraf → InfluxDB + Mosquitto MQTT</text>
+  <text x="55" y="498" class="small">MQTT: topic based on name tag, e.g.  roof_light_sensor_1  /  roof_light_sensor_2</text>
+  <text x="55" y="518" class="small">InfluxDB: bucket = Roof_Light_Sensors  |  organization = HomeAutomation  |  measurement = roof_light</text>
+</svg>

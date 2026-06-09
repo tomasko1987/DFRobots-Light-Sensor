@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>ZLAN 7110M – VirCom Documentation (Part 1)</title>
+<style>
+  :root {
+    --bg:#f6f8fb; --card:#ffffff; --text:#1e2533; --muted:#5a6475;
+    --line:#d9e0ea; --accent:#0b6bcb; --ok:#0b8f55; --warn:#a56a00;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:28px; background:var(--bg); color:var(--text);
+    font-family: Arial, Helvetica, sans-serif; line-height:1.58;
+  }
+  .wrap { max-width:1100px; margin:0 auto; }
+  .hero {
+    background:linear-gradient(135deg,#ffffff,#eef5ff);
+    border:1px solid var(--line); border-radius:18px; padding:28px; margin-bottom:22px;
+  }
+  h1,h2,h3 { color:#0e1726; }
+  h1 { margin:0 0 8px 0; font-size:30px; }
+  h2 { margin-top:34px; border-bottom:2px solid var(--line); padding-bottom:8px; }
+  h3 { margin-top:24px; }
+  p, li { font-size:15px; }
+  .card {
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:22px; margin:20px 0; box-shadow:0 2px 10px rgba(0,0,0,.04);
+  }
+  .figure {
+    background:#f0f4f8; border:1px solid var(--line); border-radius:14px;
+    padding:14px; margin:16px 0; color:var(--muted); font-size:13px;
+    font-style:italic;
+  }
+  .figure::before { content:"📷 "; }
+  .grid { display:grid; grid-template-columns:1fr; gap:18px; }
+  table { width:100%; border-collapse:collapse; margin:14px 0 18px 0; }
+  th, td { border:1px solid var(--line); padding:10px 12px; text-align:left; vertical-align:top; }
+  th { background:#eef4ff; }
+  code {
+    background:#eef3f9; border:1px solid #dde5ef; border-radius:6px; padding:2px 6px;
+    font-family:Consolas, "Courier New", monospace;
+  }
+  pre {
+    background:#111827; color:#eef2ff; padding:14px; border-radius:10px; overflow:auto;
+    font-family:Consolas, "Courier New", monospace;
+  }
+  .note, .ok, .warn {
+    padding:12px 14px; border-left:4px solid var(--accent); background:#eef5ff; border-radius:8px; margin:14px 0;
+  }
+  .ok { border-left-color:var(--ok); background:#edf9f2; }
+  .warn { border-left-color:var(--warn); background:#fff7e8; }
+  .toc a { color:var(--accent); text-decoration:none; }
+  .toc li { margin:6px 0; }
+  @media (max-width: 900px) { body { padding:16px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<h1>ZLAN 7110M – VirCom Documentation</h1>
+<p><strong>Part 1:</strong> detailed documentation of the <strong>ZLAN 7110M</strong> device configuration in the <strong>VirCom</strong> software.</p>
+<p>This part covers only the configuration in VirCom: the main <strong>Device Settings</strong> window, the <strong>More Advanced Settings</strong> window, the <strong>Firmware/Config</strong> section, the meaning of the <strong>Webpage directory in local PC</strong> field, the meaning of the <strong>Download</strong> and <strong>Bind ID</strong> buttons, and a detailed explanation of <strong>Modbus cfg</strong>.</p>
+<div class="ok"><strong>Project context:</strong> The ZLAN 7110M is used here as a <strong>Modbus TCP ↔ Modbus RTU gateway</strong>. On the network side it communicates via TCP/IP; on the sensor side it communicates via RS485 with a Modbus RTU sensor.</div>
+</section>
+<section class="card toc">
+<h2>Contents</h2>
+<ol>
+<li><a href="#overview">Role of the ZLAN 7110M in the project</a></li>
+<li><a href="#device-settings">Main Device Settings window</a></li>
+<li><a href="#advanced">More Advanced Settings</a></li>
+<li><a href="#firmware-config">Firmware/Config</a></li>
+<li><a href="#modbus-cfg">Modbus cfg</a></li>
+<li><a href="#summary">Brief summary of this part</a></li>
+</ol>
+</section>
+<section class="card" id="overview">
+<h2>1. Role of the ZLAN 7110M in the project</h2>
+<p>The <strong>VirCom</strong> software is used to configure the <strong>ZLAN 7110M</strong> device. In this project, the ZLAN serves two roles simultaneously:</p>
+<ul>
+<li>on one side it appears on the network as a <strong>TCP server</strong> to which a client connects, for example QModMaster,</li>
+<li>on the other side it communicates with the sensor via <strong>RS485 / Modbus RTU</strong>.</li>
+</ul>
+<p>In other words: the ZLAN is a translator between the network world and serial RS485 communication.</p>
+<pre>QModMaster  --(Modbus TCP)--&gt;  ZLAN 7110M  --(Modbus RTU / RS485)--&gt;  Sensor</pre>
+<div class="note"><strong>Important:</strong> Two different layers are therefore configured in VirCom: <strong>Network</strong> for network communication and <strong>Serial</strong> for RS485 communication with the sensor.</div>
+</section>
+<section class="card" id="device-settings">
+<h2>2. Main Device Settings window</h2>
+<div class="figure">VirCom – main Device Settings window. This is where device identity, network communication, and serial communication with the sensor are configured.</div>
+<p>The <strong>Device Settings</strong> window is the basic device configuration window. It is divided into several sections: <strong>Device Info</strong>, <strong>Network</strong>, <strong>Serial</strong>, <strong>Function of the device</strong>, and <strong>Advanced Settings</strong>.</p>
+<h3>2.1 Device Info</h3>
+<p>The <strong>Device Info</strong> section contains device identification data. These items are usually not changed but are used to confirm that you are working with the correct ZLAN unit.</p>
+<table>
+<tr><th>Field</th><th>Meaning</th><th>Usage in the project</th></tr>
+<tr><td><code>Virtual Serial</code></td><td>Determines whether a virtual COM port will be used on Windows.</td><td>In the project this was set to <code>Not Use</code>, because communication is handled via TCP, not a virtual serial port.</td></tr>
+<tr><td><code>Dev Type</code></td><td>Device type, e.g. <code>ZLSN7110</code>.</td><td>Used only to identify the model.</td></tr>
+<tr><td><code>Dev Name</code></td><td>Device name shown in VirCom.</td><td>Can help distinguish between multiple ZLAN devices.</td></tr>
+<tr><td><code>Dev ID</code></td><td>Unique identifier of the specific physical device.</td><td>Important when binding a configuration to a specific unit via <strong>Bind ID</strong>.</td></tr>
+<tr><td><code>Firmware Ver</code></td><td>Version of the firmware loaded on the device.</td><td>Important for compatibility checks and comparing behaviour across versions.</td></tr>
+</table>
+<h3>2.2 Network</h3>
+<p>The <strong>Network</strong> section configures the network behaviour of the device. This is the part that determines how QModMaster or another client will connect to the ZLAN over the network.</p>
+<table>
+<tr><th>Field</th><th>Recommended setting</th><th>Meaning and why it is set this way</th></tr>
+<tr><td><code>IP Mode</code></td><td><code>DHCP</code></td><td>Determines whether the device gets its IP automatically from the router. DHCP was used so the device can easily join an existing network without manual IP assignment.</td></tr>
+<tr><td><code>IP Address</code></td><td>per network, e.g. <code>192.168.50.129</code></td><td>Current IP address of the ZLAN on the local network. QModMaster then connects to this address in TCP mode.</td></tr>
+<tr><td><code>Port</code></td><td><code>4196</code></td><td>TCP port on which the ZLAN listens for client connections. Must match the port configured in QModMaster.</td></tr>
+<tr><td><code>Work Mode</code></td><td><code>TCP Server</code></td><td>The ZLAN waits for a client to connect from the network. This is the correct mode when a client accesses the ZLAN via its IP address.</td></tr>
+<tr><td><code>Net Mask</code></td><td>per network, typically <code>255.255.255.0</code></td><td>Network mask. In DHCP mode it is usually filled in automatically.</td></tr>
+<tr><td><code>Gateway</code></td><td>Router IP address</td><td>Network gateway. Allows routing outside the local subnet if needed.</td></tr>
+<tr><td><code>Dest. IP/Domain</code></td><td>not used in <code>TCP Server</code> mode</td><td>This parameter is mainly relevant in client mode when the device itself initiates an outbound connection.</td></tr>
+<tr><td><code>Dest. Port</code></td><td>not used in <code>TCP Server</code> mode</td><td>The same applies as for the destination IP address – not critical for server mode.</td></tr>
+</table>
+<div class="note"><strong>Why this setting was chosen:</strong> the goal was for QModMaster to connect to the ZLAN as a network device. The ZLAN must therefore have a valid IP address on the network and must be in <code>TCP Server</code> mode.</div>
+<h3>2.3 Serial</h3>
+<p>The <strong>Serial</strong> section determines how the ZLAN communicates with the sensor over RS485. This setting must match the sensor's parameters.</p>
+<table>
+<tr><th>Field</th><th>Final setting</th><th>Meaning and why it is set this way</th></tr>
+<tr><td><code>Baud Rate</code></td><td><code>9600</code></td><td>Serial communication speed. A direct RTU test of the sensor confirmed that the sensor responds correctly at 9600 baud.</td></tr>
+<tr><td><code>Data Bits</code></td><td><code>8</code></td><td>Number of data bits in a transmitted frame.</td></tr>
+<tr><td><code>Parity</code></td><td><code>None</code></td><td>No parity bit is used. Any other setting would result in a corrupted or invalid response.</td></tr>
+<tr><td><code>Stop Bits</code></td><td><code>1</code></td><td>Number of stop bits in the frame.</td></tr>
+<tr><td><code>Flow Control</code></td><td><code>None</code></td><td>Flow control is not used with this RS485 Modbus RTU communication.</td></tr>
+</table>
+<p>The final verified serial setting was:</p>
+<pre>9600, 8, None, 1</pre>
+<div class="warn"><strong>Important:</strong> If the serial setting in the ZLAN does not match the sensor's serial setting, network communication may work but errors such as <code>Timeout</code> or <code>Invalid data</code> will occur on the RS485 side.</div>
+<h3>2.4 Function of the device</h3>
+<p>In the left part of the main window there are device function options. The critical option for this project is:</p>
+<ul>
+<li><strong><code>Modbus TCP To RTU</code></strong></li>
+</ul>
+<p>This option tells the ZLAN to translate incoming Modbus TCP requests from the network into Modbus RTU requests directed at the sensor on RS485.</p>
+<div class="ok"><strong>Without this option:</strong> the ZLAN can communicate over the network and over RS485, but it cannot act as a Modbus gateway between the two worlds.</div>
+<h3>2.5 Advanced Settings</h3>
+<p>In the lower right part there are additional network parameters.</p>
+<table>
+<tr><th>Field</th><th>Meaning</th><th>Project note</th></tr>
+<tr><td><code>DNS Server IP</code></td><td>DNS server address.</td><td>Not critical for Modbus sensor reading.</td></tr>
+<tr><td><code>Dest. Mode</code></td><td>How the device works with the destination address.</td><td>Left as <code>Dynamic</code>.</td></tr>
+<tr><td><code>Transfer Protocol</code></td><td>Additional transfer mode of the device.</td><td>Left as <code>None</code>, because the Modbus gateway functionality is what matters.</td></tr>
+<tr><td><code>Keep Alive Time</code></td><td>Keep-alive message interval.</td><td>Helps maintain network connection in some traffic types.</td></tr>
+<tr><td><code>Reconnect Time</code></td><td>Time between connection recovery attempts.</td><td>More relevant for client-mode operation.</td></tr>
+<tr><td><code>Http Port</code></td><td>Device web interface port.</td><td>Allows access to the ZLAN's built-in web interface.</td></tr>
+</table>
+</section>
+<section class="card" id="advanced">
+<h2>3. More Advanced Settings</h2>
+<div class="figure">VirCom – More Advanced Settings. This is where WiFi behaviour and especially the Modbus gateway type between TCP and RTU are configured.</div>
+<p>The <strong>More Advanced Settings</strong> window contains extended device settings. For this project two sections were important: <strong>WiFi Settings</strong> and <strong>RS485 Multi-Host Support Settings</strong>.</p>
+<h3>3.1 WiFi Settings</h3>
+<table>
+<tr><th>Field</th><th>Recommended setting</th><th>Meaning and why it is set this way</th></tr>
+<tr><td><code>WIFI Work Mode</code></td><td><code>Station</code></td><td>The ZLAN connects to an existing WiFi network as a client. This is the correct setting for a local WiFi network with a router.</td></tr>
+<tr><td><code>AP/STA SSID</code></td><td>WiFi network name</td><td>SSID of the network the device connects to.</td></tr>
+<tr><td><code>Encryption</code></td><td><code>Auto</code></td><td>Automatic selection of the network security type.</td></tr>
+<tr><td><code>AP/STA Key</code></td><td>WiFi password</td><td>Password for the WiFi network.</td></tr>
+<tr><td><code>AP Mode Channel</code></td><td>no change needed</td><td>Mainly relevant in Access Point mode. Station mode is used in this project.</td></tr>
+<tr><td><code>DHCP Server</code></td><td><code>Disable</code></td><td>The ZLAN should not assign IP addresses to other devices. That is the router's role.</td></tr>
+<tr><td><code>RJ45 WIFI Relay</code></td><td><code>Disable</code></td><td>Not used in this project.</td></tr>
+</table>
+<h3>3.2 RS485 Multi-Host Support Settings</h3>
+<p>The most important setting in this window is the Modbus gateway type.</p>
+<table>
+<tr><th>Field</th><th>Final setting</th><th>Meaning and why it is set this way</th></tr>
+<tr><td><code>Modbus Gateway Type</code></td><td><code>Simple Modbus TCP to RTU</code></td><td>Specifies that the ZLAN operates as a simple gateway between Modbus TCP on the network side and Modbus RTU on the RS485 side.</td></tr>
+<tr><td><code>Enable RS485 Multi-Host</code></td><td>disabled</td><td>For this project there is no need to serve multiple hosts on the RS485 bus.</td></tr>
+<tr><td><code>Maximum wait time of RS485 query command</code></td><td><code>0</code></td><td>No change needed. The default behaviour was sufficient.</td></tr>
+<tr><td><code>Enable RS485 bus conflict detection</code></td><td>disabled</td><td>With a single sensor, bus collision detection is not necessary.</td></tr>
+<tr><td><code>Send data only when RS485 bus is idle</code></td><td><code>0</code></td><td>No additional wait time.</td></tr>
+</table>
+<div class="ok"><strong>Key point:</strong> the <code>Simple Modbus TCP to RTU</code> setting is essential. Without it, the ZLAN would not translate TCP requests into correct RTU requests directed at the sensor.</div>
+</section>
+<section class="card" id="firmware-config">
+<h2>4. Firmware/Config</h2>
+<div class="figure">VirCom – Firmware/Config window. This is where the working directory for local files, device identification, and the Download button for sending the configuration to the ZLAN are found.</div>
+<p>The <strong>Firmware/Config</strong> window is used to prepare and upload the configuration to the device. This is where the <strong>Webpage directory in local PC</strong> field, the <strong>Download</strong> button, and identification via <strong>DevID</strong> and <strong>Bind ID</strong> are used.</p>
+<h3>4.1 Webpage directory in local PC</h3>
+<p>The <strong>Webpage directory in local PC</strong> field specifies the local folder on the computer that VirCom uses as a working directory for creating helper configuration files before sending them to the ZLAN.</p>
+<p>In practice this means VirCom first prepares local files in the specified folder and only then sends them to the device.</p>
+<table>
+<tr><th>Field</th><th>Example</th><th>Meaning</th></tr>
+<tr><td><code>Webpage directory in local PC</code></td><td><code>C:\Apps\VirCon</code></td><td>An existing folder on the disk where VirCom can write its helper files.</td></tr>
+</table>
+<div class="warn"><strong>What happened when it was not set correctly:</strong> when the folder did not exist or was set to an invalid path, VirCom displayed the error:</div>
+<pre>The root directory of the local web page does not exist!</pre>
+<p>This error did not indicate a problem with Modbus communication, but rather that VirCom had nowhere to create its local working files. The fix was simple: create an existing folder on the disk and set it in this field.</p>
+<h3>4.2 DevID and Bind ID</h3>
+<p><strong>DevID</strong> is the unique identifier of the physical ZLAN device. The <strong>Bind ID</strong> button is used to bind the prepared configuration to a specific hardware unit.</p>
+<p>This is especially important when there are multiple devices of the same type on the network. Bind ID helps ensure that the configuration is not accidentally sent to the wrong device.</p>
+<table>
+<tr><th>Field</th><th>Meaning</th></tr>
+<tr><td><code>DevID</code></td><td>Unique identifier of the specific ZLAN device.</td></tr>
+<tr><td><code>Bind ID</code></td><td>Binds the configuration to a specific DevID so VirCom knows which device to transfer data to.</td></tr>
+</table>
+<h3>4.3 Download</h3>
+<p>The <strong>Download</strong> button in this window means <strong>sending the prepared configuration from the PC to the ZLAN device</strong>.</p>
+<p>This is not a "download" in the internet sense. The flow is reversed: VirCom prepares the configuration files locally on the PC and then pushes them to the ZLAN when the button is pressed.</p>
+<p>After a successful transfer the following message appeared:</p>
+<pre>Transfer complete. DON'T power down when LINK led light is blinking!</pre>
+<p>This means the transfer completed, but the device may still be writing data to internal memory. Do not power off the device while the LINK LED is blinking rapidly.</p>
+</section>
+<section class="card" id="modbus-cfg">
+<h2>5. Modbus cfg</h2>
+<div class="figure">VirCom – Modbus cfg. This is where you specify which RTU register from the sensor is to be cyclically read and to which TCP register the ZLAN should map it.</div>
+<p>The <strong>Modbus cfg</strong> section is critical for the mapping between the sensor world and the TCP client world. Here you configure which register the ZLAN should read from the sensor and which TCP register it should store it in.</p>
+<h3>5.1 Final settings used in the project</h3>
+<pre>Command No        = 1
+Slave Address     = 1
+Modbus Function   = 4
+Register Addr     = 3
+Register Length   = 1
+RTU Query Interval= 100 ms
+RTU Reply Timeout = 500 ms
+Modbus TCP Reg Addr = 0</pre>
+<h3>5.2 Meaning of each field</h3>
+<table>
+<tr><th>Field</th><th>Meaning</th><th>Why it was set this way</th></tr>
+<tr><td><code>Command No</code></td><td>Sequential number of the rule in the table.</td><td>Serves only as a record identifier. With one sensor, <code>1</code> is sufficient.</td></tr>
+<tr><td><code>Slave Address</code></td><td>Modbus address of the sensor on the RS485 bus.</td><td>A direct RTU test confirmed that the sensor responds at address <code>1</code>.</td></tr>
+<tr><td><code>Modbus Function</code></td><td>Type of Modbus operation the ZLAN will perform towards the sensor.</td><td>Testing showed that the light value is accessible via <code>Function 04 – Read Input Registers</code>.</td></tr>
+<tr><td><code>Register Addr</code></td><td>RTU register number in the sensor from which to read the value.</td><td>Comparing light and dark confirmed that the value changes in register <code>3</code>.</td></tr>
+<tr><td><code>Register Length</code></td><td>Number of registers to read.</td><td><code>1</code> is sufficient because the light value is in a single register.</td></tr>
+<tr><td><code>RTU Query Interval</code></td><td>How often the ZLAN will poll the sensor.</td><td><code>100 ms</code> means frequent updates. For better stability this can be increased to e.g. 1000 ms.</td></tr>
+<tr><td><code>RTU Reply Timeout</code></td><td>Maximum time to wait for a sensor response.</td><td><code>500 ms</code> is a reasonable value – long enough for a response but not unnecessarily large.</td></tr>
+<tr><td><code>Support 05/06 cmd</code></td><td>Support for write commands.</td><td>Not needed for reading light values, so it was left disabled.</td></tr>
+<tr><td><code>Device off line, set register value</code></td><td>Fallback value when the device is offline.</td><td>Typically left at <code>0</code> to indicate that the sensor is not responding.</td></tr>
+<tr><td><code>Modbus TCP Reg Addr</code></td><td>TCP register number on the ZLAN side where the read RTU value is stored.</td><td>The value from the sensor's register <code>3</code> was mapped to <code>TCP register 0</code> so that clients can read it easily.</td></tr>
+</table>
+<h3>5.3 Mapping logic</h3>
+<p>After this configuration, the mapping works as follows:</p>
+<pre>Sensor RTU side:
+Slave 1, Function 04, Register 3  --&gt;  light value
+
+ZLAN TCP side:
+Register 0  --&gt;  the same light value</pre>
+<p>This means a network client does not need to know that the sensor has its value in RTU register 3. It only needs to know that it should read <strong>register 0</strong> from the ZLAN via TCP.</p>
+</section>
+<section class="card" id="summary">
+<h2>6. Brief summary of this part</h2>
+<p>In VirCom the ZLAN 7110M needed to be configured so that:</p>
+<ul>
+<li>it is accessible on the local network via its own IP address and TCP port,</li>
+<li>it communicates with the sensor over RS485 at serial setting <code>9600, 8, None, 1</code>,</li>
+<li>the <code>Modbus TCP To RTU</code> function is enabled,</li>
+<li>the advanced settings use the <code>Simple Modbus TCP to RTU</code> mode,</li>
+<li>the correct working directory is set in the <code>Webpage directory in local PC</code> field,</li>
+<li>and the <strong>Modbus cfg</strong> section maps RTU register 3 to TCP register 0.</li>
+</ul>
+<div class="ok"><strong>Result:</strong> after this configuration, the ZLAN 7110M can read the sensor over RS485 and make the light value available to a network client via Modbus TCP.</div>
+</section>
+</div>
+<section class="card" id="upload-config">
+<h2>7. Configuration upload procedure</h2>
+<p>
+    After configuring all parameters in VirCom, the configuration must be uploaded to the ZLAN device.
+    This process consists of two main steps: <strong>Bind ID</strong> and <strong>Download</strong>.
+  </p>
+<h3>7.1 Step 1 – check the device</h3>
+<ul>
+<li>verify the correct IP address of the device,</li>
+<li>verify that you are connected to the correct ZLAN (especially if you have more than one),</li>
+<li>check the <strong>DevID</strong> in Device Info.</li>
+</ul>
+<h3>7.2 Step 2 – Bind ID</h3>
+<p>
+    The <strong>Bind ID</strong> button is used to bind the current configuration to a specific device.
+    This ensures the configuration will be sent to the correct ZLAN unit.
+  </p>
+<div class="note">
+    Bind ID is not technically mandatory, but it is <strong>strongly recommended</strong>, especially if you have multiple devices on the network.
+  </div>
+<h3>7.3 Step 3 – Download</h3>
+<p>
+    After binding the configuration, press the <strong>Download</strong> button.
+    This sends the configuration from the PC to the ZLAN device.
+  </p>
+<p>
+    After a successful transfer the following message appears:
+  </p>
+<pre>Transfer complete. DON'T power down when LINK led light is blinking!</pre>
+<p>
+    While the LED is blinking, the device is writing the configuration to memory and must not be powered off.
+  </p>
+<h3>7.4 Recommended procedure</h3>
+<pre>
+1. Check the device (IP, DevID)
+2. Click Bind ID
+3. Click Download
+  </pre>
+<div class="ok">
+    This procedure ensures the configuration is uploaded correctly and to the correct device.
+  </div>
+</section>
+<section class="card" id="qmodmaster">
+<h1>Part 2 – QModMaster Configuration</h1>
+<p>
+    <strong>QModMaster</strong> is used in this project to verify communication and to read
+    values from the <strong>ZLAN 7110M</strong> device. On the QModMaster side the communication is
+    <strong>Modbus TCP</strong>, and the ZLAN then internally translates the request to
+    <strong>Modbus RTU</strong> towards the sensor.
+  </p>
+<div class="ok">
+<strong>Final working settings in QModMaster:</strong>
+<code>Modbus Mode = TCP</code>,
+    <code>Slave Addr = 1</code>,
+    <code>Function Code = 04</code>,
+    <code>Start Address = 0</code>,
+    <code>Number of Registers = 1</code>,
+    ZLAN IP address and port <code>4196</code>.
+  </div>
+<h2>2.1 Opening the Modbus TCP settings</h2>
+<p>
+    Open <strong>Options → Modbus TCP</strong> in the menu.
+    This is where the network connection between QModMaster and the ZLAN device is configured.
+  </p>
+<div class="figure">QModMaster – Modbus TCP Settings window. This is where the ZLAN IP address and TCP port on which the ZLAN listens for Modbus TCP requests are configured.</div>
+<table>
+<tr><th>Field</th><th>Value</th><th>Meaning and why it is set this way</th></tr>
+<tr><td><code>Slave IP</code></td><td>e.g. <code>192.168.50.129</code></td><td>IP address of the ZLAN device on the local network. QModMaster connects to this address.</td></tr>
+<tr><td><code>TCP Port</code></td><td><code>4196</code></td><td>Port set in VirCom under <code>Network → Port</code>. Must be the same in both the ZLAN and QModMaster.</td></tr>
+</table>
+<p>
+    After filling in these parameters, confirm with the <strong>OK</strong> button.
+  </p>
+<h2>2.2 QModMaster main window</h2>
+<p>
+    The main QModMaster window is used for the actual data reading. Here you configure the Modbus
+    operation type, register address, and number of registers to read.
+  </p>
+<div class="figure">QModMaster – main GUI with the final working settings. The program is in TCP mode and reads register 0 from the ZLAN.</div>
+<table>
+<tr><th>Field</th><th>Final setting</th><th>Meaning and why it is set this way</th></tr>
+<tr><td><code>Modbus Mode</code></td><td><code>TCP</code></td><td>QModMaster communicates with the ZLAN over the network. This must be TCP, not RTU, because the client connects to the ZLAN's IP address.</td></tr>
+<tr><td><code>Slave Addr</code></td><td><code>1</code></td><td>Modbus device identifier. Address 1 is used in this project.</td></tr>
+<tr><td><code>Scan Rate (ms)</code></td><td><code>1000</code></td><td>Periodic polling interval. 1000 ms means QModMaster reads the register once per second.</td></tr>
+<tr><td><code>Function Code</code></td><td><code>Read Input Registers (0x04)</code></td><td>Reads input registers. A direct RTU test confirmed that the sensor returns the light value via function 04.</td></tr>
+<tr><td><code>Start Address</code></td><td><code>0</code></td><td>On the TCP side, register 0 is read because the ZLAN Modbus cfg maps the sensor's RTU register 3 to TCP register 0.</td></tr>
+<tr><td><code>Number of Registers</code></td><td><code>1</code></td><td>Reading one register is sufficient to obtain the current light value.</td></tr>
+<tr><td><code>Data Format</code></td><td><code>Dec</code></td><td>The value is displayed in decimal, which is most practical for direct lux readings.</td></tr>
+<tr><td><code>Signed</code></td><td>disabled</td><td>The light value is non-negative, so signed interpretation is not used.</td></tr>
+</table>
+<p>
+    In the example shown, QModMaster returns the value <strong>20068</strong>. This means the client successfully
+    read the value from the ZLAN, and this value corresponds to the current illumination measured by the sensor.
+  </p>
+<div class="note">
+<strong>Important mapping logic:</strong><br/>
+    The sensor physically communicates via RTU and its light value is in its <code>register 3</code> at <code>Function 04</code>.<br/>
+    The ZLAN periodically reads this value and stores it in its <code>TCP register 0</code>.<br/>
+    QModMaster therefore does not read register 3, but reads only <code>register 0</code> on the TCP side.
+  </div>
+<h2>2.3 Bus Monitor</h2>
+<p>
+    The <strong>Bus Monitor</strong> window is very useful for diagnostics. It displays outgoing requests
+    (<code>Tx</code>) and incoming responses (<code>Rx</code>) in hexadecimal format.
+  </p>
+<div class="figure">QModMaster – Bus Monitor. Connection to the ZLAN and subsequent Modbus TCP requests and responses are visible.</div>
+<h3>What is visible in Bus Monitor</h3>
+<p>
+    The log first shows a line about the successful connection:
+  </p>
+<pre>Connecting to IP: 192.168.50.129:4196 OK</pre>
+<p>
+    This means the TCP connection between QModMaster and the ZLAN was successfully established.
+  </p>
+<p>
+    Then the Modbus TCP frames are displayed:
+  </p>
+<pre>[TCP]-&gt;Tx ...
+[TCP]-&gt;Rx ...</pre>
+<p>
+    Meaning:
+  </p>
+<ul>
+<li><strong>Tx</strong> – request sent by QModMaster to the ZLAN,</li>
+<li><strong>Rx</strong> – response returned by the ZLAN to the client.</li>
+</ul>
+<p>
+    The response contains a pair of data bytes. In the example the response is:
+  </p>
+<pre>01 04 02 4E 64</pre>
+<p>
+    The part <code>4E 64</code> is the register value in hexadecimal.
+    Converting to decimal gives the value <strong>20068</strong>, which is also visible in the main window.
+  </p>
+<h2>2.4 How this configuration was arrived at</h2>
+<p>
+    QModMaster was first used in RTU mode via a USB-RS485 converter to verify:
+  </p>
+<ul>
+<li>the correct serial settings of the sensor,</li>
+<li>the correct sensor address,</li>
+<li>the correct function code,</li>
+<li>and the correct register where the light value changes.</li>
+</ul>
+<p>
+    This RTU test confirmed:
+  </p>
+<pre>Slave Address = 1
+Function Code = 04
+RTU Register = 3
+Serial = 9600, 8, None, 1</pre>
+<p>
+    Once these parameters were known, the ZLAN was configured in VirCom to map RTU register 3
+    to TCP register 0, and QModMaster was switched to TCP mode to read register 0 directly from the ZLAN.
+    This is the working configuration documented in this guide.
+  </p>
+</section>
+</div>
+</body>
+</html>

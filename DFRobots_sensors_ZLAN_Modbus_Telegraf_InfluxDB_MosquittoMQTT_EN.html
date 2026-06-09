@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Documentation – Docker Telegraf, ZLAN, Modbus, Sensors</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      background: #f4f6f8;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+    }
+    h1, h2, h3, h4 { color: #0f172a; }
+    h1 {
+      border-bottom: 3px solid #2563eb;
+      padding-bottom: 12px;
+      margin-top: 0;
+    }
+    h2 {
+      margin-top: 38px;
+      border-left: 6px solid #2563eb;
+      padding: 8px 12px;
+      background: #eff6ff;
+    }
+    h3 { margin-top: 28px; }
+    code, pre { font-family: Consolas, "Courier New", monospace; }
+    pre {
+      background: #0f172a;
+      color: #e5e7eb;
+      padding: 16px;
+      overflow-x: auto;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .note {
+      background: #fff7ed;
+      border-left: 6px solid #f59e0b;
+      padding: 14px 16px;
+      margin: 16px 0;
+    }
+    .ok {
+      background: #ecfdf5;
+      border-left: 6px solid #10b981;
+      padding: 14px 16px;
+      margin: 16px 0;
+    }
+    .warn {
+      background: #fef2f2;
+      border-left: 6px solid #ef4444;
+      padding: 14px 16px;
+      margin: 16px 0;
+    }
+    .info {
+      background: #eef2ff;
+      border-left: 6px solid #4f46e5;
+      padding: 14px 16px;
+      margin: 16px 0;
+    }
+    ul li, ol li { margin-bottom: 8px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0;
+    }
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #e5e7eb; }
+    .small { color: #475569; font-size: 0.95em; }
+    .diagram-wrap {
+      background:#f8fafc;
+      border:1px solid #cbd5e1;
+      border-radius:12px;
+      padding:20px;
+      margin:20px 0;
+      overflow:auto;
+    }
+    svg { max-width:100%; height:auto; }
+    .box{fill:#ffffff;stroke:#0b3d91;stroke-width:2}
+    .box2{fill:#ecfdf5;stroke:#15803d;stroke-width:2}
+    .box3{fill:#fff7ed;stroke:#ea580c;stroke-width:2}
+    .box4{fill:#fef2f2;stroke:#dc2626;stroke-width:2}
+    .txt{font-size:15px;font-family:Arial,Helvetica,sans-serif;fill:#111827}
+    .svgsmall{font-size:12px;fill:#374151}
+    .arrow{stroke:#111827;stroke-width:2;marker-end:url(#arrowhead)}
+    .toc {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      padding: 16px 22px;
+      border-radius: 10px;
+    }
+    .toc a { color: #1d4ed8; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>DFRobots Sensors → ZLAN → Modbus → Telegraf → InfluxDB, Mosquitto MQTT</h1>
+
+    <p>
+      This documentation combines the original guide to creating a Docker container for Telegraf
+      and newer documentation on connecting two ZLAN devices with RS485 DFRobot light sensors.
+      It is assembled as a practical step-by-step working guide.
+    </p>
+
+    <div class="note">
+      <strong>Current system goal:</strong><br>
+      Two DFRobot SEN0644 light sensors are connected via RS485 to two ZLAN converters.
+      ZLAN devices convert the communication to Modbus TCP. Telegraf running in a Docker container
+      reads these values, publishes them to the MQTT Mosquitto broker at <code>192.168.50.103:1883</code>
+      and can simultaneously store them in InfluxDB at <code>192.168.50.103:8086</code>.
+    </div>
+
+    <div class="toc">
+      <strong>Contents</strong>
+      <ol>
+        <li><a href="#architektura">System architecture and visual diagram</a></li>
+        <li><a href="#pojmy">Basic concepts</a></li>
+        <li><a href="#docker">Creating a Docker container for Telegraf</a></li>
+        <li><a href="#config">The telegraf.conf configuration file</a></li>
+        <li><a href="#cpu-test">First test via CPU metrics</a></li>
+        <li><a href="#zlan">Connecting ZLAN devices via Modbus TCP</a></li>
+        <li><a href="#mqtt">Connecting Telegraf to Mosquitto MQTT Broker</a></li>
+        <li><a href="#influxdb">Connecting Telegraf to InfluxDB</a></li>
+        <li><a href="#final-config">Final working configuration</a></li>
+        <li><a href="#kontrola">Functionality check</a></li>
+        <li><a href="#troubleshooting">Troubleshooting – real errors and solutions</a></li>
+        <li><a href="#next">Further possible extensions</a></li>
+      </ol>
+    </div>
+
+    <h2 id="architektura">1. System architecture and visual diagram</h2>
+
+    <p>The data path is:</p>
+    <pre>DFRobot SEN0644 → RS485 → ZLAN 7110M → Modbus TCP → Telegraf Docker container → MQTT Mosquitto + InfluxDB</pre>
+
+    <div class="diagram-wrap">
+      <svg width="1180" height="560" viewBox="0 0 1180 560" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#111827"/>
+        </marker>
+      </defs>
+
+      <rect x="30" y="60" width="210" height="95" rx="12" class="box2"/>
+      <text x="55" y="90" class="txt">DFRobot SEN0644 #1</text>
+      <text x="55" y="115" class="svgsmall">RS485 light sensor</text>
+      <text x="55" y="135" class="svgsmall">Modbus RTU / RS485</text>
+
+      <rect x="30" y="250" width="210" height="95" rx="12" class="box2"/>
+      <text x="55" y="280" class="txt">DFRobot SEN0644 #2</text>
+      <text x="55" y="305" class="svgsmall">RS485 light sensor</text>
+      <text x="55" y="325" class="svgsmall">Modbus RTU / RS485</text>
+
+      <rect x="330" y="60" width="245" height="115" rx="12" class="box3"/>
+      <text x="355" y="90" class="txt">ZLAN 7110M #1</text>
+      <text x="355" y="115" class="svgsmall">IP: 192.168.50.128</text>
+      <text x="355" y="135" class="svgsmall">Port: 4196</text>
+      <text x="355" y="155" class="svgsmall">RS485 → Modbus TCP</text>
+
+      <rect x="330" y="250" width="245" height="115" rx="12" class="box3"/>
+      <text x="355" y="280" class="txt">ZLAN 7110M #2</text>
+      <text x="355" y="305" class="svgsmall">IP: 192.168.50.106</text>
+      <text x="355" y="325" class="svgsmall">Port: 4196</text>
+      <text x="355" y="345" class="svgsmall">RS485 → Modbus TCP</text>
+
+      <rect x="675" y="80" width="455" height="300" rx="14" fill="#eef2ff" stroke="#3730a3" stroke-width="2"/>
+      <text x="700" y="110" class="txt">Docker VM / Linux host</text>
+      <text x="700" y="135" class="svgsmall">Docker and containers run here</text>
+
+      <rect x="705" y="165" width="250" height="80" rx="10" class="box"/>
+      <text x="730" y="195" class="txt">Telegraf container</text>
+      <text x="730" y="220" class="svgsmall">reads Modbus TCP data</text>
+      <text x="730" y="238" class="svgsmall">/etc/telegraf/telegraf.conf</text>
+
+      <rect x="705" y="285" width="250" height="55" rx="10" class="box4"/>
+      <text x="730" y="310" class="txt">Mosquitto MQTT</text>
+      <text x="730" y="330" class="svgsmall">192.168.50.103:1883</text>
+
+      <rect x="990" y="285" width="115" height="55" rx="10" fill="#ecfeff" stroke="#0891b2" stroke-width="2"/>
+      <text x="1008" y="310" class="txt">InfluxDB</text>
+      <text x="1001" y="330" class="svgsmall">:8086</text>
+
+      <line x1="240" y1="108" x2="330" y2="108" class="arrow"/>
+      <text x="255" y="95" class="svgsmall">RS485 A/B</text>
+
+      <line x1="240" y1="298" x2="330" y2="298" class="arrow"/>
+      <text x="255" y="285" class="svgsmall">RS485 A/B</text>
+
+      <line x1="575" y1="118" x2="705" y2="195" class="arrow"/>
+      <text x="590" y="125" class="svgsmall">Modbus TCP</text>
+
+      <line x1="575" y1="308" x2="705" y2="220" class="arrow"/>
+      <text x="590" y="320" class="svgsmall">Modbus TCP</text>
+
+      <line x1="830" y1="245" x2="830" y2="285" class="arrow"/>
+      <text x="850" y="270" class="svgsmall">MQTT publish</text>
+
+      <line x1="955" y1="205" x2="1035" y2="285" class="arrow"/>
+      <text x="970" y="235" class="svgsmall">write API</text>
+      <text x="970" y="252" class="svgsmall">bucket</text>
+
+      <rect x="75" y="425" width="1030" height="80" rx="12" fill="#ffffff" stroke="#94a3b8"/>
+      <text x="100" y="455" class="txt">Data path:</text>
+      <text x="220" y="455" class="txt">DFRobots sensors → ZLAN → Modbus → Telegraf → InfluxDB, Mosquitto MQTT</text>
+      <text x="100" y="480" class="svgsmall">MQTT: topic based on name tag, e.g. roof_light_sensor_1</text>
+      <text x="100" y="500" class="svgsmall">InfluxDB: bucket Roof_Light_Sensors, organization HomeAutomation, measurement roof_light</text>
+      </svg>
+    </div>
+
+    <div class="info">
+      <strong>Diagram note:</strong> Telegraf now has two outputs simultaneously:
+      it publishes current values to <strong>Mosquitto MQTT</strong> and simultaneously writes time-series data
+      to <strong>InfluxDB</strong>, where they are stored in the bucket <code>Roof_Light_Sensors</code>.
+    </div>
+
+    <h2 id="pojmy">2. Basic concepts</h2>
+
+    <h3>2.1 Docker container</h3>
+    <p>
+      A Docker container is an isolated environment in which a specific application runs.
+      In this project, the <strong>Telegraf</strong> application runs in the container.
+      A container can use its own files as well as files from the host system via volume mapping.
+    </p>
+
+    <h3>2.2 The <code>/etc</code> directory</h3>
+    <p>
+      <code>/etc</code> is the standard location for program configuration files in Linux.
+      Telegraf inside the container expects its configuration typically here:
+    </p>
+    <pre>/etc/telegraf/telegraf.conf</pre>
+
+    <h3>2.3 The <code>/opt</code> directory</h3>
+    <p>
+      <code>/opt</code> is often used for custom applications, helper files, or project configurations.
+      In this case we have the configuration file on the host:
+    </p>
+    <pre>/opt/telegraf/telegraf.conf</pre>
+
+    <h3>2.4 Host file vs. container file</h3>
+    <p>
+      When starting the container, we mapped the host file into the container.
+      This means Telegraf inside the container reads <code>/etc/telegraf/telegraf.conf</code>,
+      but it is actually the file from the host: <code>/opt/telegraf/telegraf.conf</code>.
+    </p>
+
+    <div class="ok">
+      Advantage: when the container is deleted, the external configuration file on the host is not deleted.
+    </div>
+
+    <h2 id="docker">3. Creating a Docker container for Telegraf</h2>
+
+    <h3>3.1 Creating the configuration directory</h3>
+    <pre>sudo mkdir -p /opt/telegraf</pre>
+
+    <p>
+      This command creates the directory <code>/opt/telegraf</code> if it does not already exist.
+      The <code>-p</code> flag ensures that parent directories are also created if needed.
+    </p>
+
+    <h3>3.2 Creating or editing the configuration file</h3>
+    <pre>sudo nano /opt/telegraf/telegraf.conf</pre>
+
+    <p>
+      <code>sudo</code> is used because the <code>/opt</code> directory may require administrator privileges.
+      In the <code>nano</code> editor the file is saved with <strong>Ctrl + O</strong>, Enter and closed with <strong>Ctrl + X</strong>.
+    </p>
+
+    <h3>3.3 Starting the Telegraf container</h3>
+    <pre>docker run -d --name telegraf \
+  -v /opt/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro \
+  telegraf:latest</pre>
+
+    <table>
+      <tr><th>Parameter</th><th>Meaning</th></tr>
+      <tr><td><code>docker run</code></td><td>Creates and starts a new Docker container.</td></tr>
+      <tr><td><code>-d</code></td><td>Starts the container in the background (detached mode).</td></tr>
+      <tr><td><code>--name telegraf</code></td><td>Sets the container name to <code>telegraf</code>.</td></tr>
+      <tr><td><code>-v</code></td><td>Maps a file from the host into the container.</td></tr>
+      <tr><td><code>/opt/telegraf/telegraf.conf</code></td><td>The configuration file on the host.</td></tr>
+      <tr><td><code>/etc/telegraf/telegraf.conf</code></td><td>The configuration file inside the container.</td></tr>
+      <tr><td><code>:ro</code></td><td>Read only – the container can read the file but not modify it.</td></tr>
+      <tr><td><code>telegraf:latest</code></td><td>The Telegraf Docker image.</td></tr>
+    </table>
+
+    <h3>3.4 Checking container status</h3>
+    <pre>docker ps -a</pre>
+
+    <p>The correct status looks like:</p>
+    <pre>telegraf:latest   Up ...   telegraf</pre>
+
+    <h3>3.5 Container logs</h3>
+    <pre>docker logs telegraf</pre>
+    <pre>docker logs telegraf --tail 50</pre>
+    <pre>docker logs -f telegraf</pre>
+
+    <p>
+      Logs are the most important diagnostic tool. If there is an error in the configuration,
+      Telegraf usually prints it here.
+    </p>
+
+    <h3>3.6 Removing an old container</h3>
+    <pre>docker rm -f telegraf</pre>
+
+    <p>
+      This command forcibly removes the <code>telegraf</code> container.
+      It does not remove the external file <code>/opt/telegraf/telegraf.conf</code> if it was stored on the host.
+    </p>
+
+    <h2 id="config">4. The telegraf.conf configuration file</h2>
+
+    <h3>4.1 The <code>[agent]</code> section</h3>
+    <pre>[agent]
+  interval = "10s"
+  flush_interval = "10s"</pre>
+
+    <table>
+      <tr><th>Parameter</th><th>Meaning</th></tr>
+      <tr>
+        <td><code>interval = "10s"</code></td>
+        <td>Telegraf reads values from inputs (e.g. Modbus registers) every 10 seconds.</td>
+      </tr>
+      <tr>
+        <td><code>flush_interval = "10s"</code></td>
+        <td>Telegraf sends or writes the collected data to output every 10 seconds.</td>
+      </tr>
+    </table>
+
+    <h3>4.2 TOML format</h3>
+    <p>
+      <code>telegraf.conf</code> uses the TOML format. Indentation is not as strict as in Python,
+      but correct brackets, quotes, commas, and block structure are important.
+    </p>
+
+    <div class="warn">
+      Typical error: bad syntax causes the container to crash or start restarting in a loop.
+    </div>
+
+    <h2 id="cpu-test">5. First test via CPU metrics</h2>
+
+    <p>
+      Before Modbus, we first verified that Telegraf as a container was working.
+      A simple test using <code>[[inputs.cpu]]</code> was used for this.
+    </p>
+
+    <pre>[agent]
+  interval = "10s"
+  flush_interval = "10s"
+
+[[inputs.cpu]]
+  percpu = true
+  totalcpu = true
+  collect_cpu_time = false
+  report_active = true
+
+[[outputs.file]]
+  files = ["stdout"]
+  data_format = "influx"</pre>
+
+    <table>
+      <tr><th>Parameter</th><th>Meaning</th></tr>
+      <tr><td><code>[[inputs.cpu]]</code></td><td>Input plugin that collects CPU metrics.</td></tr>
+      <tr><td><code>percpu = true</code></td><td>Collects metrics for individual CPU cores.</td></tr>
+      <tr><td><code>totalcpu = true</code></td><td>Also collects the overall CPU summary value.</td></tr>
+      <tr><td><code>report_active = true</code></td><td>Also reports active CPU utilization.</td></tr>
+      <tr><td><code>[[outputs.file]]</code></td><td>Output plugin that writes data to a file or stdout.</td></tr>
+      <tr><td><code>files = ["stdout"]</code></td><td>Data is written to standard output, visible via <code>docker logs</code>.</td></tr>
+      <tr><td><code>data_format = "influx"</code></td><td>Data is in Influx line protocol format.</td></tr>
+    </table>
+
+    <div class="ok">
+      When lines starting with <code>cpu,...</code> appeared in the logs, it confirmed that the container and configuration were working.
+    </div>
+
+    <h2 id="zlan">6. Connecting ZLAN devices via Modbus TCP</h2>
+
+    <h3>6.1 Verified values from QModMaster software</h3>
+    <table>
+      <tr><th>Setting</th><th>Value</th></tr>
+      <tr><td>Modbus Mode</td><td>TCP</td></tr>
+      <tr><td>Function Code</td><td>Read Input Registers (0x04)</td></tr>
+      <tr><td>Slave Addr</td><td>1</td></tr>
+      <tr><td>Start Address</td><td>0</td></tr>
+      <tr><td>Number of registers</td><td>1</td></tr>
+      <tr><td>ZLAN #1</td><td>192.168.50.128:4196</td></tr>
+      <tr><td>ZLAN #2</td><td>192.168.50.106:4196</td></tr>
+    </table>
+
+    <h3>6.2 Converting the value to lux</h3>
+    <p>
+      The sensor has a resolution of 0.01 lux. Therefore the raw register value is converted as follows:
+    </p>
+    <pre>lux = raw_value * 0.01</pre>
+
+    <p>Example:</p>
+    <pre>raw = 43712
+lux = 43712 * 0.01 = 437.12 lux</pre>
+
+    <h3>6.3 First sensor</h3>
+    <pre>[[inputs.modbus]]
+  name = "roof_light_sensor_1"
+  controller = "tcp://192.168.50.128:4196"
+  slave_id = 1
+
+  input_registers = [
+    { name = "lux", byte_order = "AB", data_type = "UINT16", scale = 0.01, address = [0] }
+  ]</pre>
+
+    <h3>6.4 Second sensor</h3>
+    <pre>[[inputs.modbus]]
+  name = "roof_light_sensor_2"
+  controller = "tcp://192.168.50.106:4196"
+  slave_id = 1
+
+  input_registers = [
+    { name = "lux", byte_order = "AB", data_type = "UINT16", scale = 0.01, address = [0] }
+  ]</pre>
+
+    <h3>6.5 Explanation of Modbus block parameters</h3>
+    <table>
+      <tr><th>Parameter</th><th>Meaning</th></tr>
+      <tr><td><code>[[inputs.modbus]]</code></td><td>Telegraf input plugin for a Modbus device.</td></tr>
+      <tr><td><code>name</code></td><td>Device name in metrics. We use <code>roof_light_sensor_1</code> and <code>roof_light_sensor_2</code>.</td></tr>
+      <tr><td><code>controller</code></td><td>Address of the ZLAN converter in the format <code>tcp://IP:port</code>.</td></tr>
+      <tr><td><code>slave_id = 1</code></td><td>Modbus slave address of the sensor. Value 1 was configured in QModMaster.</td></tr>
+      <tr><td><code>input_registers</code></td><td>Corresponds to the Read Input Registers function, i.e. Modbus function 0x04.</td></tr>
+      <tr><td><code>name = "lux"</code></td><td>Name of the resulting measured field.</td></tr>
+      <tr><td><code>byte_order = "AB"</code></td><td>Byte order for a single 16-bit register.</td></tr>
+      <tr><td><code>data_type = "UINT16"</code></td><td>The value is a 16-bit unsigned integer.</td></tr>
+      <tr><td><code>scale = 0.01</code></td><td>Conversion factor from raw value to lux.</td></tr>
+      <tr><td><code>address = [0]</code></td><td>The register to read. For this plugin version the value must be an array.</td></tr>
+    </table>
+
+    <h2 id="mqtt">7. Connecting Telegraf to Mosquitto MQTT Broker</h2>
+
+    <p>
+      After verifying that ZLAN device values could be read via Modbus TCP, we added an output
+      to the Mosquitto MQTT broker. The broker runs in a Docker container and is available at
+      <code>192.168.50.103</code> on port <code>1883</code>.
+    </p>
+
+    <table>
+      <tr><th>Setting</th><th>Value</th></tr>
+      <tr><td>MQTT broker</td><td>Mosquitto in Docker container</td></tr>
+      <tr><td>IP address</td><td><code>192.168.50.103</code></td></tr>
+      <tr><td>Port</td><td><code>1883</code></td></tr>
+      <tr><td>Topic sensor 1</td><td><code>roof_light_sensor_1</code></td></tr>
+      <tr><td>Topic sensor 2</td><td><code>roof_light_sensor_2</code></td></tr>
+      <tr><td>Payload</td><td><code>{"name":"roof_light_sensor_1","value":461,"unit":"lux"}</code></td></tr>
+    </table>
+
+    <h3>7.1 Publishing to topic by sensor name</h3>
+    <p>
+      Each Modbus block has its own <code>name</code> parameter. Telegraf uses it in the metric
+      as the <code>name</code> tag. The MQTT output can therefore use this tag as the topic name:
+    </p>
+
+    <pre>topic = '{{ .Tag "name" }}'</pre>
+
+    <p>The resulting topics in MQTT Explorer are:</p>
+    <pre>roof_light_sensor_1
+roof_light_sensor_2</pre>
+
+    <h3>7.2 Required MQTT message format</h3>
+    <p>
+      The goal was not to send the full Telegraf JSON with <code>fields</code>, <code>tags</code>
+      and <code>timestamp</code>, but a simple message:
+    </p>
+
+    <pre>{
+  "name": "roof_light_sensor_1",
+  "value": 461,
+  "unit": "lux"
+}</pre>
+
+    <div class="note">
+      The notation <code>"value": 461 "lux"</code> is not valid JSON. The correct approach is to have
+      value and unit separately: <code>"value": 461</code> and <code>"unit": "lux"</code>.
+    </div>
+
+    <h3>7.3 Why use <code>data_format = "template"</code></h3>
+    <p>
+      When trying <code>data_format = "json"</code>, the full standard Telegraf JSON appeared in MQTT Explorer:
+    </p>
+
+    <pre>{
+  "fields": {"lux": 461},
+  "name": "modbus",
+  "tags": {
+    "name": "roof_light_sensor_1",
+    "slave_id": "1",
+    "type": "input_register"
+  },
+  "timestamp": 1777028990
+}</pre>
+
+    <p>
+      This worked but was overly verbose. Therefore we used <code>data_format = "template"</code>,
+      which lets us compose the exact output JSON ourselves.
+    </p>
+
+    <div class="warn">
+      <strong>Note:</strong> <code>json_v2</code> was not used as the final solution here.
+      For a custom MQTT payload we used <code>template</code>.
+    </div>
+
+    <h3>7.4 Final MQTT output block</h3>
+
+    <pre>[[outputs.mqtt]]
+  servers = ["tcp://192.168.50.103:1883"]
+  topic = '{{ .Tag "name" }}'
+  data_format = "template"
+  template = '{"name":"{{ .Tag "name" }}","value":{{ .Field "lux" }},"unit":"lux"}'</pre>
+
+    <h3>7.5 Parameter explanations</h3>
+    <table>
+      <tr><th>Parameter</th><th>Meaning</th></tr>
+      <tr>
+        <td><code>[[outputs.mqtt]]</code></td>
+        <td>Telegraf output plugin that publishes data to an MQTT broker.</td>
+      </tr>
+      <tr>
+        <td><code>servers = ["tcp://192.168.50.103:1883"]</code></td>
+        <td>Address of the Mosquitto broker.</td>
+      </tr>
+      <tr>
+        <td><code>topic = '{{ .Tag "name" }}'</code></td>
+        <td>Topic is constructed from the <code>name</code> tag, i.e. the sensor name.</td>
+      </tr>
+      <tr>
+        <td><code>data_format = "template"</code></td>
+        <td>Enables a custom template for the output message.</td>
+      </tr>
+      <tr>
+        <td><code>{{ .Tag "name" }}</code></td>
+        <td>Inserts the sensor name, e.g. <code>roof_light_sensor_1</code>.</td>
+      </tr>
+      <tr>
+        <td><code>{{ .Field "lux" }}</code></td>
+        <td>Inserts the value of the <code>lux</code> field.</td>
+      </tr>
+      <tr>
+        <td><code>"unit":"lux"</code></td>
+        <td>Adds a fixed unit of measurement to the message.</td>
+      </tr>
+    </table>
+
+    <h3>7.6 Verification via MQTT Explorer</h3>
+    <p>
+      In MQTT Explorer, connect to the broker:
+    </p>
+    <pre>Host: 192.168.50.103
+Port: 1883</pre>
+
+    <p>Expected result:</p>
+    <pre>roof_light_sensor_1 = {"name":"roof_light_sensor_1","value":461,"unit":"lux"}
+roof_light_sensor_2 = {"name":"roof_light_sensor_2","value":496,"unit":"lux"}</pre>
+
+    <h3>7.7 Verification via command line</h3>
+    <pre>mosquitto_sub -h 192.168.50.103 -p 1883 -t "roof_light_sensor_1" -v</pre>
+
+    <pre>mosquitto_sub -h 192.168.50.103 -p 1883 -t "roof_light_sensor_2" -v</pre>
+
+    <h2 id="influxdb">8. Connecting Telegraf to InfluxDB</h2>
+
+    <p>
+      After setting up the MQTT output, we also added data sending to InfluxDB.
+      InfluxDB is a database optimized for time series, meaning data that changes over time.
+      It is suitable for light sensors, temperatures, humidity, energy consumption, and other measurements.
+    </p>
+
+    <table>
+      <tr><th>Setting</th><th>Value</th></tr>
+      <tr><td>InfluxDB address</td><td><code>http://192.168.50.103:8086</code></td></tr>
+      <tr><td>Organization</td><td><code>HomeAutomation</code></td></tr>
+      <tr><td>Bucket</td><td><code>Roof_Light_Sensors</code></td></tr>
+      <tr><td>Authentication method</td><td>API Token</td></tr>
+      <tr><td>Telegraf output plugin</td><td><code>[[outputs.influxdb_v2]]</code></td></tr>
+    </table>
+
+    <h3>8.1 Why API Token is used in InfluxDB 2.x</h3>
+    <p>
+      In InfluxDB 2.x, an <strong>API Token</strong> is the standard authentication method for
+      applications and services such as Telegraf. Classic username and password is mainly used for
+      logging into the InfluxDB web interface.
+    </p>
+
+    <div class="note">
+      Telegraf is an automated service. It is therefore better to use an API Token with precisely
+      configured permissions, such as write-only access to one bucket. This is more secure than
+      storing administrator credentials.
+    </div>
+
+    <h3>8.2 What is Organization</h3>
+    <p>
+      An <strong>Organization</strong> is a logical organizational unit in InfluxDB.
+      It groups buckets, tokens, users, and settings.
+      This project uses:
+    </p>
+
+    <pre>HomeAutomation</pre>
+
+    <p>
+      In <code>telegraf.conf</code>, the organization must be specified exactly as it was created in InfluxDB.
+    </p>
+
+    <h3>8.3 What is a Bucket</h3>
+    <p>
+      A <strong>Bucket</strong> is where InfluxDB stores time-series data.
+      It can be thought of as a database or container for a specific type of measurements.
+      This project uses:
+    </p>
+
+    <pre>Roof_Light_Sensors</pre>
+
+    <p>
+      Values from the rooftop light sensors are stored in this bucket.
+    </p>
+
+    <h3>8.4 What is an API Token</h3>
+    <p>
+      An <strong>API Token</strong> is a secret key with which Telegraf authenticates to InfluxDB.
+      The token defines what Telegraf is allowed to do. For this project it only needs write access
+      to the <code>Roof_Light_Sensors</code> bucket.
+    </p>
+
+    <div class="warn">
+      An API Token is sensitive data. Do not share it publicly and do not include it in full in documentation.
+      In this documentation we use the placeholder text <code>SEM_VLOZ_TVOJ_API_TOKEN</code>.
+    </div>
+
+    <h3>8.5 How to create an API Token in InfluxDB</h3>
+    <ol>
+      <li>Open InfluxDB: <code>http://192.168.50.103:8086</code></li>
+      <li>Log in to InfluxDB.</li>
+      <li>Go to <strong>Load Data</strong>.</li>
+      <li>Select <strong>API Tokens</strong>.</li>
+      <li>Click <strong>Generate API Token</strong>.</li>
+      <li>Select <strong>Custom API Token</strong>.</li>
+      <li>Select bucket <code>Roof_Light_Sensors</code>.</li>
+      <li>Set at minimum the <strong>Write</strong> permission.</li>
+      <li>Copy the token and store it securely.</li>
+    </ol>
+
+    <div class="note">
+      The token is often only shown once when created. If you lose it, create a new token.
+    </div>
+
+    <h3>8.6 Why Write permission is sufficient</h3>
+    <p>
+      Telegraf needs to write data to InfluxDB. It does not need to read historical values,
+      delete data, or manage the database. Therefore it is safer to create a token with only
+      <strong>Write</strong> permission for the specific bucket.
+    </p>
+
+    <h3>8.7 Adjusting measurement for cleaner graphs</h3>
+    <p>
+      Without adjustment, data from the Modbus plugin could be stored under the measurement name <code>modbus</code>.
+      This works but for graphs it is cleaner to have a custom name:
+    </p>
+
+    <pre>roof_light</pre>
+
+    <p>
+      Therefore we added the following to each <code>[[inputs.modbus]]</code> block:
+    </p>
+
+    <pre>name_override = "roof_light"</pre>
+
+    <p>The result in InfluxDB will be:</p>
+
+    <table>
+      <tr><th>InfluxDB field</th><th>Value</th></tr>
+      <tr><td>Measurement</td><td><code>roof_light</code></td></tr>
+      <tr><td>Field</td><td><code>lux</code></td></tr>
+      <tr><td>Tag</td><td><code>name=roof_light_sensor_1</code> or <code>name=roof_light_sensor_2</code></td></tr>
+      <tr><td>Bucket</td><td><code>Roof_Light_Sensors</code></td></tr>
+    </table>
+
+    <h3>8.8 Updated Modbus inputs</h3>
+
+    <pre>[[inputs.modbus]]
+  name = "roof_light_sensor_1"
+  name_override = "roof_light"
+  controller = "tcp://192.168.50.128:4196"
+  slave_id = 1
+
+  input_registers = [
+    { name = "lux", byte_order = "AB", data_type = "UINT16", scale = 0.01, address = [0] }
+  ]
+
+[[inputs.modbus]]
+  name = "roof_light_sensor_2"
+  name_override = "roof_light"
+  controller = "tcp://192.168.50.106:4196"
+  slave_id = 1
+
+  input_registers = [
+    { name = "lux", byte_order = "AB", data_type = "UINT16", scale = 0.01, address = [0] }
+  ]</pre>
+
+    <h3>8.9 InfluxDB output in <code>telegraf.conf</code></h3>
+
+    <pre>[[outputs.influxdb_v2]]
+  urls = ["http://192.168.50.103:8086"]
+  token = "SEM_VLOZ_TVOJ_API_TOKEN"
+  organization = "HomeAutomation"
+  bucket = "Roof_Light_Sensors"</pre>
+
+    <h3>8.10 Explanation of InfluxDB parameters</h3>
+    <table>
+      <tr><th>Parameter</th><th>Meaning</th></tr>
+      <tr><td><code>[[outputs.influxdb_v2]]</code></td><td>Telegraf output plugin for InfluxDB 2.x.</td></tr>
+      <tr><td><code>urls</code></td><td>Address of the InfluxDB server. Port <code>8086</code> is the standard InfluxDB web/API port.</td></tr>
+      <tr><td><code>token</code></td><td>API Token with which Telegraf authenticates to InfluxDB.</td></tr>
+      <tr><td><code>organization</code></td><td>Name of the InfluxDB organization.</td></tr>
+      <tr><td><code>bucket</code></td><td>Target bucket where measurements are stored.</td></tr>
+    </table>
+
+    <h3>8.11 Can MQTT and InfluxDB be enabled simultaneously?</h3>
+    <p>
+      Yes. Telegraf can have multiple outputs at once. The same measurements can be simultaneously
+      published to MQTT and stored in InfluxDB.
+    </p>
+
+    <pre>[[outputs.mqtt]]
+  ...
+
+[[outputs.influxdb_v2]]
+  ...</pre>
+
+    <h3>8.12 Verification in InfluxDB</h3>
+    <ol>
+      <li>Open InfluxDB: <code>http://192.168.50.103:8086</code></li>
+      <li>Go to <strong>Data Explorer</strong>.</li>
+      <li>Select bucket <code>Roof_Light_Sensors</code>.</li>
+      <li>Select measurement <code>roof_light</code>.</li>
+      <li>Select field <code>lux</code>.</li>
+      <li>You can filter by tag <code>name</code>.</li>
+    </ol>
+
+    <h3>8.13 Expected result in InfluxDB</h3>
+
+    <pre>bucket: Roof_Light_Sensors
+measurement: roof_light
+field: lux
+tag name: roof_light_sensor_1
+tag name: roof_light_sensor_2</pre>
+
+    <h3>8.14 InfluxDB Troubleshooting</h3>
+    <table>
+      <tr><th>Problem</th><th>Possible cause</th><th>Solution</th></tr>
+      <tr>
+        <td>No data visible in InfluxDB</td>
+        <td>Wrong token, bucket, or organization</td>
+        <td>Check <code>token</code>, <code>organization</code>, and <code>bucket</code>.</td>
+      </tr>
+      <tr>
+        <td>Unauthorized error</td>
+        <td>Token does not have write permission for the bucket</td>
+        <td>Create a new Custom API Token with Write permission for <code>Roof_Light_Sensors</code>.</td>
+      </tr>
+      <tr>
+        <td>Connection refused error</td>
+        <td>InfluxDB is not available</td>
+        <td>Check that the InfluxDB container is running and that port <code>8086</code> is accessible.</td>
+      </tr>
+      <tr>
+        <td>Measurement is still <code>modbus</code></td>
+        <td>Missing <code>name_override</code></td>
+        <td>Add <code>name_override = "roof_light"</code> to both Modbus blocks.</td>
+      </tr>
+    </table>
+
+    <h2 id="final-config">9. Final working configuration</h2>
+
+    <p>This is the current working configuration for two ZLAN sensors, MQTT output to the Mosquitto broker, and InfluxDB output:</p>
+
+    <pre>[agent]
+  interval = "10s"
+  flush_interval = "10s"
+
+[[inputs.modbus]]
+  name = "roof_light_sensor_1"
+  name_override = "roof_light"
+  controller = "tcp://192.168.50.128:4196"
+  slave_id = 1
+
+  input_registers = [
+    { name = "lux", byte_order = "AB", data_type = "UINT16", scale = 0.01, address = [0] }
+  ]
+
+[[inputs.modbus]]
+  name = "roof_light_sensor_2"
+  name_override = "roof_light"
+  controller = "tcp://192.168.50.106:4196"
+  slave_id = 1
+
+  input_registers = [
+    { name = "lux", byte_order = "AB", data_type = "UINT16", scale = 0.01, address = [0] }
+  ]
+
+[[outputs.mqtt]]
+  servers = ["tcp://192.168.50.103:1883"]
+  topic = '{{ .Tag "name" }}'
+  data_format = "template"
+  template = '{"name":"{{ .Tag "name" }}","value":{{ .Field "lux" }},"unit":"lux"}'
+
+[[outputs.influxdb_v2]]
+  urls = ["http://192.168.50.103:8086"]
+  token = "SEM_VLOZ_TVOJ_API_TOKEN"
+  organization = "HomeAutomation"
+  bucket = "Roof_Light_Sensors"</pre>
+
+    <div class="note">
+      The test block <code>[[outputs.file]]</code> can be left disabled.
+      If you leave it enabled together with MQTT, Telegraf will simultaneously print data to logs and publish to MQTT.
+    </div>
+
+    <h2 id="kontrola">10. Functionality check</h2>
+
+    <h3>10.1 Restart after configuration change</h3>
+    <pre>docker restart telegraf</pre>
+
+    <h3>10.2 Status check</h3>
+    <pre>docker ps -a</pre>
+
+    <p>Expected result:</p>
+    <pre>telegraf   Up ...</pre>
+
+    <h3>10.3 Log check</h3>
+    <pre>docker logs telegraf --tail 50</pre>
+    <pre>docker logs -f telegraf</pre>
+
+    <h3>10.4 Expected log with two Modbus inputs loaded</h3>
+    <pre>Loaded inputs: modbus (2x)
+
+Got 1 request(s) touching 1 input registers for 1 fields (slave 1) on device "roof_light_sensor_1"
+Got 1 request(s) touching 1 input registers for 1 fields (slave 1) on device "roof_light_sensor_2"</pre>
+
+    <h3>10.5 Expected output with values</h3>
+    <pre>modbus,host=...,name=roof_light_sensor_1,slave_id=1,type=input_register lux=437.12 ...
+modbus,host=...,name=roof_light_sensor_2,slave_id=1,type=input_register lux=512.34 ...</pre>
+
+    <div class="ok">
+      If you see <code>lux=...</code> for both sensors, the
+      <strong>ZLAN → Modbus TCP → Telegraf</strong> communication is working.
+    </div>
+
+    <h2 id="troubleshooting">11. Troubleshooting – real errors and solutions</h2>
+
+    <h3>11.1 Container is in <code>Restarting</code> state</h3>
+    <div class="warn">
+      This means the container starts but the main process inside it crashes.
+      Docker then repeatedly attempts to restart it.
+    </div>
+    <p>Diagnosis:</p>
+    <pre>docker logs telegraf</pre>
+    <p>Most common cause: error in <code>telegraf.conf</code>.</p>
+
+    <h3>11.2 <code>Permission denied</code></h3>
+    <div class="warn">
+      The user does not have permission to write to the file or directory.
+    </div>
+    <p>Solution:</p>
+    <pre>sudo nano /opt/telegraf/telegraf.conf</pre>
+    <p>Or check permissions:</p>
+    <pre>ls -l /opt/telegraf/telegraf.conf</pre>
+
+    <h3>11.3 <code>invalid TOML syntax</code></h3>
+    <div class="warn">
+      Syntax error in the configuration file.
+    </div>
+    <p>Check especially:</p>
+    <ul>
+      <li>square brackets <code>[ ]</code>,</li>
+      <li>quotes <code>" "</code>,</li>
+      <li>commas in inline objects,</li>
+      <li>correct block names, e.g. <code>[[inputs.modbus]]</code>.</li>
+    </ul>
+
+    <h3>11.4 <code>invalid scale '0.000000'</code></h3>
+    <div class="warn">
+      The <code>scale</code> parameter was missing or had an invalid value.
+    </div>
+    <p>Working solution for lux:</p>
+    <pre>scale = 0.01</pre>
+    <p>For a raw test you can use:</p>
+    <pre>scale = 1.0</pre>
+
+    <h3>11.5 <code>cannot unmarshal TOML integer into []uint16</code></h3>
+    <div class="warn">
+      In this version of the Telegraf Modbus plugin the <code>address</code> parameter expects an array, not a plain number.
+    </div>
+    <p>Wrong:</p>
+    <pre>address = 0</pre>
+    <p>Correct:</p>
+    <pre>address = [0]</pre>
+
+    <h3>11.6 <code>invalid byte order "ABCD"</code></h3>
+    <div class="warn">
+      For a single 16-bit register, <code>ABCD</code> was an incorrect value.
+    </div>
+    <p>Correct:</p>
+    <pre>byte_order = "AB"</pre>
+
+    <h3>11.7 <code>invalid byte order ""</code></h3>
+    <div class="warn">
+      The <code>byte_order</code> parameter was empty or incorrectly removed.
+    </div>
+    <p>Solution:</p>
+    <pre>byte_order = "AB"</pre>
+
+    <h3>11.8 Logs show lines with <code>0 request(s)</code></h3>
+    <p>Example:</p>
+    <pre>Got 0 request(s) touching 0 holding registers
+Got 0 request(s) touching 0 discrete registers
+Got 0 request(s) touching 0 coil registers</pre>
+    <div class="ok">
+      This is not an error. It simply means you are not using holding registers, discrete inputs, or coils.
+      You are only using <code>input_registers</code>, so Telegraf correctly reads only those.
+    </div>
+
+    <h3>11.9 No <code>lux</code> values visible</h3>
+    <p>Steps:</p>
+    <ol>
+      <li>Check that the container is <code>Up</code>: <code>docker ps -a</code></li>
+      <li>View logs: <code>docker logs telegraf --tail 100</code></li>
+      <li>Check the IP address of the ZLAN device.</li>
+      <li>Check port <code>4196</code>.</li>
+      <li>Check <code>slave_id = 1</code>.</li>
+      <li>Verify communication in QModMaster.</li>
+    </ol>
+
+    <h3>11.10 MQTT payload contains fields/tags/timestamp</h3>
+    <div class="warn">
+      This means standard JSON output is being used instead of a custom template.
+    </div>
+    <p>Solution:</p>
+    <pre>data_format = "template"
+template = '{"name":"{{ .Tag "name" }}","value":{{ .Field "lux" }},"unit":"lux"}'</pre>
+
+    <h3>11.11 MQTT topic is not the sensor name</h3>
+    <p>
+      Check that the MQTT output has:
+    </p>
+    <pre>topic = '{{ .Tag "name" }}'</pre>
+
+    <h3>11.12 No data visible in MQTT Explorer</h3>
+    <ol>
+      <li>Check that the Mosquitto container is running.</li>
+      <li>Check IP address <code>192.168.50.103</code>.</li>
+      <li>Check port <code>1883</code>.</li>
+      <li>Check Telegraf logs: <code>docker logs telegraf --tail 100</code>.</li>
+      <li>Check that the Telegraf container can reach the broker over the network.</li>
+    </ol>
+
+    <h3>11.13 InfluxDB: unauthorized</h3>
+    <div class="warn">
+      Telegraf cannot authorize with InfluxDB.
+    </div>
+    <p>
+      Most commonly caused by an incorrect API Token or a token without write permission for the bucket.
+      Create a new Custom API Token with <strong>Write</strong> permission for bucket
+      <code>Roof_Light_Sensors</code>.
+    </p>
+
+    <h3>11.14 InfluxDB: measurement <code>roof_light</code> not visible</h3>
+    <p>Check that both Modbus blocks contain:</p>
+    <pre>name_override = "roof_light"</pre>
+
+    <h3>11.15 InfluxDB: connection refused</h3>
+    <p>
+      Check that the InfluxDB container is running, that port <code>8086</code> is accessible,
+      and that the address is correct:
+    </p>
+    <pre>http://192.168.50.103:8086</pre>
+
+    <h2 id="next">12. Further possible extensions</h2>
+
+    <h3>12.1 MQTT Mosquitto output</h3>
+    <p>
+      The MQTT output is already included in section 7. It uses broker
+      <code>192.168.50.103:1883</code>, topic based on the sensor name,
+      and a custom JSON payload via <code>data_format = "template"</code>.
+    </p>
+
+    <h3>12.2 InfluxDB and Grafana</h3>
+    <p>
+      The InfluxDB output is already included in section 8. The next step can be Grafana,
+      which can draw graphs from bucket <code>Roof_Light_Sensors</code> for sensors
+      <code>roof_light_sensor_1</code> and <code>roof_light_sensor_2</code>.
+    </p>
+
+    <h3>12.3 Home Assistant</h3>
+    <p>
+      If data is published to MQTT, Home Assistant can read it as MQTT sensors.
+    </p>
+
+    <h2>13. Summary</h2>
+    <table>
+      <tr><th>Component</th><th>Status</th></tr>
+      <tr><td>Docker Telegraf container</td><td>Created and running</td></tr>
+      <tr><td>Configuration file</td><td><code>/opt/telegraf/telegraf.conf</code></td></tr>
+      <tr><td>ZLAN #1</td><td><code>192.168.50.128:4196</code></td></tr>
+      <tr><td>ZLAN #2</td><td><code>192.168.50.106:4196</code></td></tr>
+      <tr><td>Modbus function</td><td>Input Registers, address <code>[0]</code></td></tr>
+      <tr><td>Value</td><td><code>lux</code> with scale <code>0.01</code></td></tr>
+      <tr><td>MQTT broker</td><td><code>192.168.50.103:1883</code></td></tr>
+      <tr><td>MQTT topics</td><td><code>roof_light_sensor_1</code>, <code>roof_light_sensor_2</code></td></tr>
+      <tr><td>MQTT payload</td><td><code>{"name":"...","value":...,"unit":"lux"}</code></td></tr>
+      <tr><td>InfluxDB</td><td><code>http://192.168.50.103:8086</code></td></tr>
+      <tr><td>InfluxDB Organization</td><td><code>HomeAutomation</code></td></tr>
+      <tr><td>InfluxDB Bucket</td><td><code>Roof_Light_Sensors</code></td></tr>
+      <tr><td>InfluxDB Measurement</td><td><code>roof_light</code></td></tr>
+      <tr><td>InfluxDB authentication</td><td>API Token with Write permission</td></tr>
+    </table>
+  </div>
+</body>
+</html>
